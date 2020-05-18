@@ -9,7 +9,7 @@
 
 
 int main() {
-    //ENABLE_CRT; // TODO Fix memory leaks!
+    ENABLE_CRT;
 
     std::ifstream input_stream("input.txt");
     Lexer lexer(input_stream);
