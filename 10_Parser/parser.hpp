@@ -8,12 +8,9 @@
 
 namespace AST {
 
-
     struct Node {
         std::string type;
         virtual void delete_children() noexcept {}
-    private:
-        virtual void noop() {} // we need virtual function in base class so "typeid(*A)" starts working and we can use rrti for visitor pattern
     };
 
     void delete_node(Node* node) noexcept {
@@ -21,9 +18,6 @@ namespace AST {
         delete node;
     }
 
-    /**
-     * Binary operation (+,-,*,/)
-     */
     struct BinOp : Node {
         BinOp(Node* _left, Lexeme _operand, Node* _right) : var(_left), operand(_operand), right(_right) {}
         Node* var;

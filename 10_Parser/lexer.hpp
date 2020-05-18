@@ -2,14 +2,12 @@
 #ifndef LEXER_HPP
 #define LEXER_HPP
 
-#include <iostream> 
+
+#include <istream> 
 #include <string>
 #include <sstream>
 #include <unordered_map>
 #include <limits>
-
-using std::string;
-using std::ifstream;
 
 const int INTEGER_MAX = std::numeric_limits<int>::max();
 
@@ -41,14 +39,14 @@ const char NONE_CHAR = 0;
 struct Lexeme {
 public:
     Lexeme(Token _type, int _number) : type(_type), number(_number) {}
-    Lexeme(Token _type, string _str) : type(_type), str(_str) {}
+    Lexeme(Token _type, std::string _str) : type(_type), str(_str) {}
 
     Token type;
     int number = 0;
-    string str = "";
+    std::string str = "";
 };
 
-const std::unordered_map<string, Lexeme> RESERVED({
+const std::unordered_map<std::string, Lexeme> RESERVED({
     { "BEGIN", Lexeme(Token::BEGIN, "BEGIN") },
     { "END", Lexeme(Token::END, "END") }
 });
@@ -76,15 +74,20 @@ public:
 
 class Lexer {
 public:
-    explicit Lexer(ifstream& _stream) : stream(_stream) {
-        getline(stream, str);
+    explicit Lexer(std::istream& _stream) : stream(_stream) {
+        //stream.
+        do {
+            ++line;
+        } while (getline(stream, str) && str.size() == 0);
         cursor = str[0];
     }
 
     Lexeme get_next_token() {
         while (cursor != NONE_CHAR) {
-            skip_spaces();
-
+            if (isspace(cursor)) {
+                skip_spaces();
+                continue;
+            }
             if (isalpha(cursor)) {
                 return get_id();
             }
@@ -119,6 +122,7 @@ private:
             } else do {
                 ++line;
                 //getline(stream, str);
+                
             } while (getline(stream, str) && str.size() == 0);
         }
         cursor = str[col];
@@ -179,8 +183,8 @@ private:
 private:
     const int INT_MAX_DIV_10 = INTEGER_MAX / 10;
     const int INT_MAX_LAST_DIGIT = INTEGER_MAX - INT_MAX_DIV_10;
-    ifstream& stream;
-    string str;
+    std::istream& stream;
+    std::string str;
     size_t line = 0;
     size_t col = 0;
     char cursor = NONE_CHAR;

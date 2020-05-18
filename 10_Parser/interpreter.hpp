@@ -5,10 +5,6 @@
 #include <cassert>
 #include "./parser.hpp"
 
-class NodeVisitor {
-
-};
-
 static const auto& TYPE_BINOP = typeid(AST::BinOp);
 static const auto& TYPE_NUM = typeid(AST::Num);
 static const auto& TYPE_UNARYOP = typeid(AST::UnaryOp);
@@ -17,7 +13,7 @@ static const auto& TYPE_ASSIGN = typeid(AST::Assign);
 static const auto& TYPE_VAR = typeid(AST::Var);
 static const auto& TYPE_NOOP = typeid(AST::NoOp);
 
-class Interpreter : public NodeVisitor {
+class Interpreter {
 public:
     Interpreter(Parser _parser) : parser(_parser) {}
     int interprete() {
@@ -31,22 +27,15 @@ public:
     }
 private:
     int visit_BinOp(AST::BinOp* node) {
-        //node.
+        auto lhs = visit(node->var);
+        auto rhs = visit(node->right);
         switch (node->operand.type) {
-        case PLUS:
-            return visit(node->var) + visit(node->right);
-            break;
-        case MINUS:
-            return visit(node->var) - visit(node->right);
-            break;
-        case MUL:
-            return visit(node->var) * visit(node->right);
-            break;
-        case DIV:
-            return visit(node->var) / visit(node->right);
-            break;
+        case PLUS: return lhs + rhs;
+        case MINUS: return lhs - rhs;
+        case MUL: return lhs * rhs;
+        case DIV: return lhs / rhs;
+        default: assert(false);
         }
-        assert(false);
         return 0;
     }
 
@@ -56,15 +45,12 @@ private:
 
     int visit_UnaryOp(AST::UnaryOp* node) {
         auto type = node->operand.type;
+        auto rhs = visit(node->expr);
         switch (node->operand.type) {
-        case PLUS:
-            return +visit(node->expr);
-            break;
-        case MINUS:
-            return -visit(node->expr);
-            break;
+        case PLUS: return +rhs;
+        case MINUS: return -rhs;
+        default: assert(false);
         }
-        assert(false);
         return 0;
     }
 
@@ -83,7 +69,7 @@ private:
 
     int visit_Var(AST::Var* node) {
         auto var_name = node->id.str;
-        return scope.at(var_name); // TODO not found exeption
+        return scope.at(var_name); // TODO not found exception
     }
 
     int visit_NoOp(AST::NoOp* node) {
