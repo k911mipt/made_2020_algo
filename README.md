@@ -17,3 +17,11 @@
 * [C. Множественный поиск 2](./12/12_3_Multiple_search_2/12_3.cpp)
 * [D. Ненокку](./12/12_4_Nenokku/12_4.cpp)
 * [E. Суффиксный массив](./12/12_5_Suffix_array/12_5.cpp)
+
+## 13. Вычислительная геометрия
+
+* [A. Две окружности](./13/13_1_Two_circles/main.cpp)
+* [B. Пересечение полуплоскостей](./13/13_2_Half-planes_intersection/main.cpp)
+* [C. Площади](./13/13_3_Squares/main.cpp)
+* [D. База в джунглях](./13/13_4_Jungle_base/main.cpp)
+* [E. Покрытие кругом](./13/13_5_Disk_coverage/main.cpp)
