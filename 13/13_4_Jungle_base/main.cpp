@@ -11,12 +11,8 @@
 #include "memcheck_crt.h"
 #endif // _DEBUG
 
-using pint = int64_t;
-using pdouble = long double;
-static const pdouble EPS = 1e-9;
-
-namespace rmath {
-    using val_t = pdouble;
+namespace geometry::linalg {
+    using val_t = long double;
     using buf_type = std::vector<val_t>;
     using row_it = buf_type::iterator;
     using row_cit = buf_type::const_iterator;
@@ -156,113 +152,197 @@ namespace rmath {
         return invAT_A.prod(AT).prod(y);
     }
 }
-using namespace rmath;
 
-struct Point {
-    Point(pdouble _x, pdouble _y) : x(_x), y(_y) {}
-    Point() : Point(0, 0) {}
-    Point(Point from, Point to) : Point(to.x - from.x, to.y - from.y) {}
-    bool operator==(const Point& rhs) const& { return (abs(x - rhs.x) < EPS) && (abs(y - rhs.y) < EPS); }
-    bool operator!=(const Point& rhs) const& { return !(*this == rhs); }
-    Point operator-() const& { return Point(-x, -y); }
-    friend std::istream& operator >> (std::istream& in, Point& p) { return in >> p.x >> p.y; }
-    pdouble sqr_length() const& { return x * x + y * y; }
-    pdouble dot(const Point& b) const& { return x * b.y - y * b.x; }
-    pdouble scalar(const Point& b) const& { return x * b.x + y * b.y; }
-    pdouble cos(const Point& b) const& {
-        const auto& a = (*this);
-        pdouble la = a.sqr_length();
-        pdouble lb = b.sqr_length();
-        return a.scalar(b) / sqrt(la * lb);
+namespace geometry::primitives {
+    using pint = int64_t;
+    using pdouble = double;
+
+    static const pdouble EPS = 1e-9;
+
+    template <typename T>
+    inline constexpr T sqr(T v) {
+        return v * v;
     }
 
-    pdouble x, y;
-};
-
-struct Line {
-    Line(pint _a, pint _b, pint _c) : a(_a), b(_b), c(_c) {}
-    std::pair<Point, bool> get_intersection(const Line& l2) const& {
-        const auto& l1 = *this;
-        assert(l1.a != l2.a || l1.b != l2.b);
-        pdouble det_ab = static_cast<pdouble>(l1.a * l2.b - l1.b * l2.a);
-        Point bc(l1.b, l1.c);
-        Point ca(l1.c, l1.a);
-        return std::make_pair(Point((l1.b * l2.c - l1.c * l2.b) / det_ab,
-            (l1.c * l2.a - l1.a * l2.c) / det_ab), std::signbit(det_ab));
-    }
-    bool operator==(const Line& l2) const& {
-        if (a != 0) {
-            return ((abs(1.0 * l2.b * a / l2.a - b) < EPS) &&
-                (abs(1.0 * l2.c * a / l2.a - c) < EPS));
-        } else if (b != 0) {
-            return ((abs(1.0 * l2.a * b / l2.b - a) < EPS) &&
-                (abs(1.0 * l2.c * b / l2.b - c) < EPS));
-        } else if (c != 0) {
-            return ((abs(1.0 * l2.a * c / l2.c - a) < EPS) &&
-                (abs(1.0 * l2.b * c / l2.c - b) < EPS));
+    template <typename T>
+    struct Point {
+        Point(T _x, T _y) : x(_x), y(_y) {}
+        Point() : Point(0, 0) {}
+        Point(Point from, Point to) : Point(to.x - from.x, to.y - from.y) {}
+        template <typename U>
+        operator Point<U>() const { return { static_cast<U>(x), static_cast<U>(y) }; }
+        bool operator == (const Point& p) const& { return abs(x - p.x) < EPS && abs(y - p.y) < EPS; }
+        Point operator -() const& { return Point(-x, -y); }
+        Point operator + (const Point& rhs) const& { return Point(-rhs, *this); }
+        Point operator - (const Point& rhs) const& { return (*this) + -rhs; }
+        Point& operator *= (T multiplier) {
+            x *= multiplier;
+            y *= multiplier;
+            return *this;
         }
-        return false;
-    }
-    bool is_collinear(const Line& l2) const& {
-        if (a != 0) {
-            return (abs(1.0 * l2.b * a / l2.a - b) < EPS);
-        } else if (b != 0) {
-            return (abs(1.0 * l2.a * b / l2.b - a) < EPS);
+        Point& operator /= (T divisor) { // if Point is of integral type, require chords to be divisable by divisor
+            assert(!std::is_integral<T>() || ((x / divisor) * divisor == x && (y / divisor) * divisor == y));
+            x /= divisor;
+            y /= divisor;
+            return *this;
         }
-        return false;
-    }
+        Point operator / (T divisor) const& { return Point(*this) /= divisor; }
+        friend std::istream& operator >> (std::istream& in, Point& p) { return in >> p.x >> p.y; }
+        friend std::ostream& operator << (std::ostream& out, Point p) { return out << p.x << " " << p.y; }
+        T dot(const Point& b) const& { return x * b.y - y * b.x; }
+        T scalar(const Point& b) const& { return x * b.x + y * b.y; }
+        T sqr_length() const& { return sqr(x) + sqr(y); }
+        template <typename U>
+        pdouble cos(const Point<U>& b) const& { return scalar(b) / sqrt(static_cast<pdouble>(sqr_length() * b.sqr_length())); }
 
-    pint a, b, c;
-};
+        T x, y;
+    };
+    using IPoint = Point<pint>;
+    using DPoint = Point<pdouble>;
 
-struct HalfPlane : Line {
-    HalfPlane(pint _a, pint _b, pint _c) : Line(_a, _b, _c) {}
-    HalfPlane() : HalfPlane(0, 0, 0) {}
-    HalfPlane(Point a, Point b) : HalfPlane(a.y - b.y, b.x - a.x, a.dot(b)) {}
-    HalfPlane operator-() const& { return { -a, -b, -c }; }
-    bool has_point(const Point& p) const& { return a * p.x + b * p.y + c >= -EPS; }
-};
-
-struct Ray {
-    Ray(HalfPlane _hp, Point _p, bool _sign, pdouble _cos) : hp(_hp), p(_p), sign(_sign), cos(_cos) {}
-    Ray(HalfPlane hp0, HalfPlane ihp) : hp(hp0) {
-        auto intersection = hp0.get_intersection(ihp);
-        p = intersection.first;
-        sign = intersection.second;
-        cos = Point(hp0.b, -hp0.a).cos(Point(ihp.b, -ihp.a));
-    }
-    bool operator<(const Ray& rhs) const& { return (compare(rhs) == -1); }
-    bool operator<=(const Ray& rhs) const& { return (compare(rhs) != 1); }
-    bool operator==(const Ray& rhs) const& { return (compare(rhs) == 0); }
-    bool operator>(const Ray& rhs) const& { return !(*this <= rhs); }
-    bool operator>=(const Ray& rhs) const& { return !(*this < rhs); }
-    bool operator!=(const Ray& rhs) const& { return !(*this == rhs); }
-    /*
-     * this <  rhs : -1
-     * this == rhs :  0
-     * this >  rhs :  1
-     */
-    int compare(const Ray& rhs) const& {
-        if (p == rhs.p) {
-            if (cos < rhs.cos + EPS) return -1;
-            if (cos > rhs.cos - EPS) return 1;
-            return 0;
+    template <typename T>
+    struct Line {
+        Line(T _a, T _b, T _c) : a(_a), b(_b), c(_c) {}
+        Line() : Line(0, 0, 0) {}
+        Line(Point<T> a, Point<T> b) : Line(a.y - b.y, b.x - a.x, a.dot(b)) {}
+        bool operator == (const Line& l2) const& {
+            if (a != 0) {
+                return ((abs(1.0 * l2.b * a / l2.a - b) < EPS) && (abs(1.0 * l2.c * a / l2.a - c) < EPS));
+            } else if (b != 0) {
+                return ((abs(1.0 * l2.a * b / l2.b - a) < EPS) && (abs(1.0 * l2.c * b / l2.b - c) < EPS));
+            } else if (c != 0) {
+                return ((abs(1.0 * l2.a * c / l2.c - a) < EPS) && (abs(1.0 * l2.b * c / l2.c - b) < EPS));
+            }
+            return false;
         }
-        Point n(hp.a, hp.b);
-        Point v(p, rhs.p);
-        return n.dot(v) < 0 ? -1 : 1;
-    }
+        Line operator -() const& { return { -a, -b, -c }; }
+        friend std::istream& operator >> (std::istream& in, Line& l) {
+            return in >> l.a >> l.b >> l.c;
+        }
+        bool is_collinear(const Line& l2) const& {
+            if (a != 0) {
+                return (abs(1.0 * l2.b * a / l2.a - b) < EPS);
+            } else if (b != 0) {
+                return (abs(1.0 * l2.a * b / l2.b - a) < EPS);
+            }
+            return false;
+        }
+        static Line get_perpendicular_bisector(Point<T> A, Point<T> B) {
+            T a = A.x - B.x;
+            T b = A.y - B.y;
+            Point M(A + (B - A) / 2);
+            T c = -a * M.x - b * M.y;
+            return Line(a, b, c);
+        }
+        std::pair<DPoint, pdouble> get_intersection_details(const Line& l2) const& {
+            const auto& l1 = *this;
+            assert(l1.a != l2.a || l1.b != l2.b);
+            pdouble det_ab = static_cast<pdouble>(l1.a * l2.b - l1.b * l2.a);
+            return std::make_pair(Point((l1.b * l2.c - l1.c * l2.b) / det_ab,
+                                        (l1.c * l2.a - l1.a * l2.c) / det_ab),
+                                  det_ab);
+        }
+        DPoint get_intersection(const Line& l2) const& {
+            return get_intersection_details(l2).first;
+        }
 
-    HalfPlane hp;
-    Point p;
-    bool sign;
-    pdouble cos;
-};
+        T a, b, c;
+    };
+    using ILine = Line<pint>;
+    using DLine = Line<pdouble>;
+
+    template <typename T>
+    struct HalfPlane : Line<T> {
+        using Line<T>::Line;
+        HalfPlane(const Line<T>& l) : Line<T>(l) {}
+
+        template <typename U>
+        bool has_point(const Point<U>& p) const {
+            return this->a * p.x + this->b * p.y + this->c >= -EPS;
+        }
+    };
+    using IHalfPlane = HalfPlane<pint>;
+    using DHalfPlane = HalfPlane<pdouble>;
+
+    template <typename TLine, typename TPoint>
+    struct Ray {
+        Ray(HalfPlane<TLine> _hp, DPoint _p, bool _sign, pdouble _cos) : hp(_hp), p(_p), sign(_sign), cos(_cos) {}
+        Ray(HalfPlane<TLine> hp0, HalfPlane<TLine> ihp) : hp(hp0) {
+            auto intersection = hp0.get_intersection_details(ihp);
+            p = intersection.first;
+            sign = std::signbit(intersection.second);
+            cos = Point(hp0.b, -hp0.a).cos(Point(ihp.b, -ihp.a));
+        }
+        bool operator<(const Ray& rhs) const& { return (compare(rhs) == -1); }
+        bool operator<=(const Ray& rhs) const& { return (compare(rhs) != 1); }
+        bool operator==(const Ray& rhs) const& { return (compare(rhs) == 0); }
+        bool operator>(const Ray& rhs) const& { return !(*this <= rhs); }
+        bool operator>=(const Ray& rhs) const& { return !(*this < rhs); }
+        bool operator!=(const Ray& rhs) const& { return !(*this == rhs); }
+        /*
+         * this <  rhs : -1
+         * this == rhs :  0
+         * this >  rhs :  1
+         */
+        int compare(const Ray& rhs) const& {
+            if (p == rhs.p) {
+                if (cos < rhs.cos + EPS) return -1;
+                if (cos > rhs.cos - EPS) return 1;
+                return 0;
+            }
+            Point<TPoint> n(hp.a, hp.b);
+            Point<TPoint> v(p, rhs.p);
+            return n.dot(v) < 0 ? -1 : 1;
+        }
+
+        HalfPlane<TLine> hp;
+        Point<TPoint> p;
+        bool sign;
+        pdouble cos;
+    };
+    using IDRay = Ray<pint, pdouble>;
+
+    template <typename T>
+    struct Circle {
+        Circle(const Point<T>& _o, const T _r_sq) : o(_o), r_sq(_r_sq), r(sqrt(r_sq)) {}
+        Circle() : Circle(Point<T>(), 0) {}
+        template <typename U>
+        Circle(const Point<U>& a, const Point<U>& b) : // a, b are on diameter
+            o(Point<T>(a, b) / 2 + a),
+            r_sq((o - a).sqr_length()),
+            r(sqrt(r_sq)) {}
+        template <typename U>
+        Circle(const Point<U>& a, const Point<U>& b, const Point<U>& c) : // a, b, c are not collinear
+            o(Line<U>::get_perpendicular_bisector(a, b).get_intersection(Line<U>::get_perpendicular_bisector(a, c))),
+            r_sq((o - a).sqr_length()),
+            r(sqrt(r_sq)) {}
+        template <typename U>
+        Circle& operator /= (U divisor) {
+            o /= divisor;
+            r /= divisor;
+            return *this;
+        }
+        template <typename U>
+        Circle operator / (U divisor) const& { return Circle(*this) /= divisor; }
+        friend std::istream& operator >> (std::istream& in, Circle& c) { return in >> c.o >> c.r; }
+        friend std::ostream& operator << (std::ostream& out, Circle c) { return out << c.o << "\n" << c.r; }
+        bool includes(const IPoint& P) const { return r_sq + EPS > DPoint(o, P).sqr_length(); }
+
+        Point<T> o;
+        T r_sq;
+        T r;
+    };
+    using ICircle = Circle<pint>;
+    using DCircle = Circle<pdouble>;
+}
+
+using namespace geometry::linalg;
+using namespace geometry::primitives;
 
 struct Polygon {
     Polygon(size_t _n) : n(_n), points(n), indexes(n), hps(n) {}
 
-    Point find_linreg_point() {
+    DPoint find_linreg_point() {
         Matrix X(n, 2);
         Matrix y(n, 1);
         for (size_t i = 0; i < n; ++i) {
@@ -272,10 +352,10 @@ struct Polygon {
             y[i][0] = -hp.c;
         }
         auto w = linalg_solve(X, y);
-        return Point(w[0][0], w[1][0]);
+        return DPoint(w[0][0], w[1][0]);
     }
 
-    Point find_min_y_polygon_point() {
+    DPoint find_min_y_polygon_point() {
         Point min_p = points[0];
         for (size_t i = 1; i < points.size(); ++i) {
             if (points[i].y < min_p.y) {
@@ -289,11 +369,11 @@ struct Polygon {
         const auto& hp0 = hps[i].first;
         size_t i_first = hps[i].second;
         size_t i_second = (i_first + step) % n;
-        Ray first_forward(hp0, points[i_first], true, -1);
-        Ray last_backward(hp0, points[i_second], false, 1);
+        IDRay first_forward(hp0, points[i_first], true, -1);
+        IDRay last_backward(hp0, points[i_second], false, 1);
         for (size_t j = 0; j < i; ++j) {
             const auto& hp = hps[j].first;
-            Ray b(hp0, hp);
+            IDRay b(hp0, hp);
             if (b.sign && b > first_forward) {
                 first_forward = b;
             } else if (!b.sign && b < last_backward) {
@@ -311,7 +391,7 @@ struct Polygon {
 
     bool check_base_alive(size_t num_cuts) {
         const size_t step = num_cuts + 1;
-        pepare_halfplanes(step);
+        prepare_halfplanes(step);
         for (size_t i = 0; i < n; ++i) {
             if (!hps[i].first.has_point(min_p) && !find_beam_point(i, step)) {
                 return false;
@@ -320,7 +400,7 @@ struct Polygon {
         return true;
     }
 
-    void pepare_halfplanes(size_t step) {
+    void prepare_halfplanes(size_t step) {
         for (size_t i = 0; i < n; ++i) {
             auto idx = indexes[i];
             hps[idx].first = { points[i], points[(i + step) % n] };
@@ -340,7 +420,7 @@ struct Polygon {
         } else {
             size_t exp_half = get_biased_half(n);
             if (n - exp_half >= 3) {
-                pepare_halfplanes(exp_half);
+                prepare_halfplanes(exp_half);
                 min_p = find_linreg_point();
             }
         }
@@ -351,10 +431,10 @@ struct Polygon {
     }
 
     size_t n;
-    Point min_p;
+    DPoint min_p;
     std::vector<size_t> indexes;
-    std::vector<Point> points;
-    std::vector<std::pair<HalfPlane, size_t>> hps;
+    std::vector<IPoint> points;
+    std::vector<std::pair<IHalfPlane, size_t>> hps;
 };
 
 size_t bin_search(size_t l, size_t r, std::function<bool(size_t)> predicate) {
