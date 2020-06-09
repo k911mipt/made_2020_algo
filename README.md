@@ -25,3 +25,10 @@
 * [C. Площади](./13/13_3_Squares/main.cpp)
 * [D. База в джунглях](./13/13_4_Jungle_base/main.cpp)
 * [E. Покрытие кругом](./13/13_5_Disk_coverage/main.cpp)
+
+## 14. FFT
+
+* [A. Задача для второклассника](./14/14_1_Task_for_a_schoolboy/main.cpp)
+* [B. Дуэль](./14/14_2_Duel/main.cpp)
+* [C. ДНК Роботов](./14/14_3_Cambio/main.cpp)
+* [D. Нечёткий поиск](./14/14_4_Fuzzy_search/main.cpp)
